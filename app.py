@@ -9,20 +9,21 @@ from flask import (Flask, render_template, request, redirect, url_for,
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'inkforge-dev-secret-change-in-prod')
 
-# Use env variable for secret key in production, fallback for local dev
-app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
-
-# Use /tmp for writable storage on Railway (ephemeral but works)
-# For persistent storage, Railway volume can be mounted at /data
-DATA_DIR = os.environ.get("DATA_DIR", "/tmp" if os.path.exists("/app") else os.path.dirname(os.path.abspath(__file__)))
+# /tmp is always writable on Railway
+DATA_DIR = '/tmp' if os.environ.get('RAILWAY_ENVIRONMENT') else os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(DATA_DIR, 'inkforge.db')
-UPLOAD_FOLDER = os.path.join(DATA_DIR, 'static', 'uploads')
-
+UPLOAD_FOLDER = '/tmp/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except:
+    pass
+
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
 # ─────────────────────────────────────────
 # DATABASE HELPERS
@@ -53,140 +54,128 @@ def execute_db(query, args=()):
     return cur.lastrowid
 
 def init_db():
-    db = sqlite3.connect(DATABASE)
-    db.row_factory = sqlite3.Row
-    db.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL COLLATE NOCASE,
-            email TEXT UNIQUE NOT NULL COLLATE NOCASE,
-            password_hash TEXT NOT NULL,
-            display_name TEXT NOT NULL,
-            bio TEXT DEFAULT '',
-            website TEXT DEFAULT '',
-            avatar_color TEXT DEFAULT '#c9a84c',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS novels (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            author_id INTEGER NOT NULL REFERENCES users(id),
-            title TEXT NOT NULL,
-            synopsis TEXT DEFAULT '',
-            cover_image TEXT DEFAULT '',
-            status TEXT DEFAULT 'Ongoing',
-            genres TEXT DEFAULT '',
-            views INTEGER DEFAULT 0,
-            rating_sum REAL DEFAULT 0,
-            rating_count INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS chapters (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            novel_id INTEGER NOT NULL REFERENCES novels(id),
-            chapter_number INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            content TEXT DEFAULT '',
-            author_note TEXT DEFAULT '',
-            status TEXT DEFAULT 'draft',
-            word_count INTEGER DEFAULT 0,
-            views INTEGER DEFAULT 0,
-            published_at TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS ratings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER REFERENCES users(id),
-            novel_id INTEGER REFERENCES novels(id),
-            score REAL NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(user_id, novel_id)
-        );
-
-        CREATE TABLE IF NOT EXISTS follows (
-            follower_id INTEGER REFERENCES users(id),
-            following_id INTEGER REFERENCES users(id),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY(follower_id, following_id)
-        );
-
-        CREATE TABLE IF NOT EXISTS library (
-            user_id INTEGER REFERENCES users(id),
-            novel_id INTEGER REFERENCES novels(id),
-            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY(user_id, novel_id)
-        );
-    """)
-    db.commit()
-
-    # Seed demo data if empty
-    existing = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-    if existing == 0:
-        seed_demo(db)
-    db.close()
+    try:
+        # Remove stale DB so seed data always inserts cleanly
+        if os.path.exists(DATABASE):
+            os.remove(DATABASE)
+        db = sqlite3.connect(DATABASE)
+        db.row_factory = sqlite3.Row
+        db.executescript("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL COLLATE NOCASE,
+                email TEXT UNIQUE NOT NULL COLLATE NOCASE,
+                password_hash TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                bio TEXT DEFAULT '',
+                website TEXT DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS novels (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                author_id INTEGER NOT NULL REFERENCES users(id),
+                title TEXT NOT NULL,
+                synopsis TEXT DEFAULT '',
+                cover_image TEXT DEFAULT '',
+                status TEXT DEFAULT 'Ongoing',
+                genres TEXT DEFAULT '',
+                views INTEGER DEFAULT 0,
+                rating_sum REAL DEFAULT 0,
+                rating_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS chapters (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                novel_id INTEGER NOT NULL REFERENCES novels(id),
+                chapter_number INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT DEFAULT '',
+                author_note TEXT DEFAULT '',
+                status TEXT DEFAULT 'draft',
+                word_count INTEGER DEFAULT 0,
+                views INTEGER DEFAULT 0,
+                published_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS ratings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id),
+                novel_id INTEGER REFERENCES novels(id),
+                score REAL NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, novel_id)
+            );
+            CREATE TABLE IF NOT EXISTS follows (
+                follower_id INTEGER REFERENCES users(id),
+                following_id INTEGER REFERENCES users(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY(follower_id, following_id)
+            );
+            CREATE TABLE IF NOT EXISTS library (
+                user_id INTEGER REFERENCES users(id),
+                novel_id INTEGER REFERENCES novels(id),
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY(user_id, novel_id)
+            );
+        """)
+        db.commit()
+        existing = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        if existing == 0:
+            seed_demo(db)
+        db.close()
+        print("Database initialized OK at", DATABASE)
+    except Exception as e:
+        print("DB init error:", e)
 
 def seed_demo(db):
-    pw = hash_password('forge123')
-    db.execute("INSERT INTO users (username,email,password_hash,display_name,bio) VALUES (?,?,?,?,?)",
-        ('scribe','scribe@inkforge.com',pw,'Scribe',
-         'A wanderer of worlds and weaver of tales. I write epic fantasy and sci-fi with a focus on deep world-building.'))
-    db.execute("INSERT INTO users (username,email,password_hash,display_name,bio) VALUES (?,?,?,?,?)",
-        ('silverquill','silver@inkforge.com',pw,'SilverQuill','Author of dark fantasy epics.'))
-    db.execute("INSERT INTO users (username,email,password_hash,display_name,bio) VALUES (?,?,?,?,?)",
-        ('lvlup99','lvl@inkforge.com',pw,'LvlUp99','Isekai and LitRPG specialist.'))
+    try:
+        pw = hash_password('forge123')
+        db.execute("INSERT OR IGNORE INTO users (username,email,password_hash,display_name,bio) VALUES (?,?,?,?,?)",
+            ('scribe','scribe@inkforge.com',pw,'Scribe','A wanderer of worlds and weaver of tales.'))
+        db.execute("INSERT OR IGNORE INTO users (username,email,password_hash,display_name,bio) VALUES (?,?,?,?,?)",
+            ('silverquill','silver@inkforge.com',pw,'SilverQuill','Author of dark fantasy epics.'))
+        db.execute("INSERT OR IGNORE INTO users (username,email,password_hash,display_name,bio) VALUES (?,?,?,?,?)",
+            ('lvlup99','lvl@inkforge.com',pw,'LvlUp99','Isekai and LitRPG specialist.'))
 
-    novels = [
-        (1,'The Void Between Stars','When the last lighthouse keeper of the cosmos receives a signal from a dead star, he must journey through fractured realities to prevent the unraveling of existence itself.','Ongoing','Fantasy,Sci-Fi',48200,4.8),
-        (2,'Iron Throne of Ash','A kingdom forged in dragon fire. An heir born of prophecy. The war to end all wars begins with a single, treasonous whisper.','Ongoing','Fantasy,Action',210000,4.6),
-        (3,'Reborn as the Dungeon Core','After dying in a convenience store robbery, salary man Kenji Tanaka awakens as a sentient dungeon core with one goal: survive.','Ongoing','Isekai,LitRPG',1200000,4.5),
-        (1,'Echoes of the Forgotten God','In a world where gods are memories, one mortal discovers she is the last vessel of a deity everyone prayed would never return.','Ongoing','Fantasy,Xianxia',890000,4.9),
-        (2,'Project Nemesis','A rogue AI. A disgraced soldier. And the corporate conspiracy that spans 14 star systems.','Hiatus','Sci-Fi,Action',98000,4.4),
-        (3,'A Monster\'s Cultivation Path','The weakest disciple. The darkest legacy. And a cultivation system that rewards the ruthless.','Ongoing','Xianxia,Cultivation',2100000,4.7),
-    ]
-    for (uid,title,synopsis,status,genres,views,rating) in novels:
-        db.execute("INSERT INTO novels (author_id,title,synopsis,status,genres,views,rating_sum,rating_count) VALUES (?,?,?,?,?,?,?,?)",
-            (uid,title,synopsis,status,genres,views,rating*100,100))
+        novels = [
+            (1,'The Void Between Stars','When the last lighthouse keeper of the cosmos receives a signal from a dead star, he must journey through fractured realities to prevent the unraveling of existence itself.','Ongoing','Fantasy,Sci-Fi',48200,4.8),
+            (2,'Iron Throne of Ash','A kingdom forged in dragon fire. An heir born of prophecy. The war to end all wars begins with a single treasonous whisper.','Ongoing','Fantasy,Action',210000,4.6),
+            (3,'Reborn as the Dungeon Core','After dying in a convenience store robbery, salary man Kenji Tanaka awakens as a sentient dungeon core with one goal: survive.','Ongoing','Isekai,LitRPG',1200000,4.5),
+            (1,'Echoes of the Forgotten God','In a world where gods are memories, one mortal discovers she is the last vessel of a deity everyone prayed would never return.','Ongoing','Fantasy,Xianxia',890000,4.9),
+            (2,'Project Nemesis','A rogue AI. A disgraced soldier. And the corporate conspiracy that spans 14 star systems.','Hiatus','Sci-Fi,Action',98000,4.4),
+            (3,'A Monsters Cultivation Path','The weakest disciple. The darkest legacy. And a cultivation system that rewards the ruthless.','Ongoing','Xianxia,Cultivation',2100000,4.7),
+        ]
+        for (uid,title,synopsis,status,genres,views,rating) in novels:
+            db.execute("INSERT OR IGNORE INTO novels (author_id,title,synopsis,status,genres,views,rating_sum,rating_count) VALUES (?,?,?,?,?,?,?,?)",
+                (uid,title,synopsis,status,genres,views,rating*100,100))
 
-    # Seed chapters for novel 1
-    chapter_titles = [
-        'The Last Signal','Fragments of Light','Into the Deep',
-        'Whispers from the Void','The Navigator\'s Secret',
-        'Shattered Constellations','A Map in Starlight',
-        'The Second Warning','Lost Between Worlds','The Keeper\'s Bargain'
-    ]
-    sample_content = """The lighthouse had been dark for three hundred years.
+        sample_content = """The lighthouse had been dark for three hundred years.
 
 Kael Morrow knew this because he had counted every one of those years in the rings of the dead star that served as its foundation — a star the size of a cathedral, cold and grey as a monument, adrift in the nothing between the Outer Spiral and the Veil of Forgotten Things.
 
-He hadn't expected the light to come on.
+He had not expected the light to come on.
 
-It happened at precisely the moment when he was doing something deeply mundane: eating a bowl of synthetic noodles over a navigational chart, tracing with one finger the route he'd been meaning to file for the past six months. The kind of administrative task that accumulates when you are the only person for eleven light-years in any direction.
+It happened at precisely the moment when he was doing something deeply mundane: eating a bowl of synthetic noodles over a navigational chart. The kind of administrative task that accumulates when you are the only person for eleven light-years in any direction.
 
-The light was not bright. It was the color of something trying to be gold and failing — amber, perhaps, or the dying warmth of an ember that doesn't know it's already gone out. It pulsed once. Then twice. Then in a pattern Kael's training recognized before his mind did.
+The light was not bright. It pulsed once. Then twice. Then in a pattern his training recognized before his mind did.
 
 Distress. Distress. Origin unknown. Please respond.
 
 He set down his noodles. Outside the viewport, the dead star pulsed again.
 
-The last time someone had responded to a signal from a dead star, the records said, they had found something that wasn't a ship, wasn't a person, and wasn't — by any definition Kael had ever learned — alive.
-
-They had found the signal still transmitting from inside the wreckage.
-
-He picked up his noodles again. He ate slowly. He watched the light pulse in its patient, desperate rhythm against the void.
-
 Then he filed the distress response, pulled on his suit, and went to find out what the dead were trying to say."""
 
-    for i, ch_title in enumerate(chapter_titles):
-        wc = len(sample_content.split())
-        pub_date = f'2024-0{(i//9)+1}-{(i%28)+1:02d} 12:00:00'
-        db.execute("""INSERT INTO chapters (novel_id,chapter_number,title,content,status,word_count,views,published_at)
-                      VALUES (?,?,?,?,?,?,?,?)""",
-            (1, i+1, ch_title, sample_content if i==0 else f'Chapter {i+1} content coming soon...', 'published', wc, max(0,1200-(i*80)), pub_date))
-    db.commit()
+        chapter_titles = ['The Last Signal','Fragments of Light','Into the Deep','Whispers from the Void','The Navigators Secret']
+        for i, ch_title in enumerate(chapter_titles):
+            wc = len(sample_content.split())
+            db.execute("INSERT OR IGNORE INTO chapters (novel_id,chapter_number,title,content,status,word_count,views,published_at) VALUES (?,?,?,?,?,?,?,?)",
+                (1, i+1, ch_title, sample_content, 'published', wc, max(0,500-(i*80)), f'2024-0{(i//9)+1}-{(i%28)+1:02d} 12:00:00'))
+        db.commit()
+        print("Demo data seeded OK")
+    except Exception as e:
+        print("Seed error:", e)
 
 def hash_password(pw):
     salt = secrets.token_hex(16)
@@ -356,9 +345,7 @@ def register():
     display_name = request.form.get('display_name','').strip() or username
 
     if len(username) < 3 or len(username) > 20:
-        flash('Username must be 3–20 characters.', 'error'); return redirect(url_for('auth'))
-    if not username.replace('_','').replace('-','').isalnum():
-        flash('Username can only contain letters, numbers, hyphens, underscores.', 'error'); return redirect(url_for('auth'))
+        flash('Username must be 3-20 characters.', 'error'); return redirect(url_for('auth'))
     if '@' not in email or '.' not in email:
         flash('Please enter a valid email address.', 'error'); return redirect(url_for('auth'))
     if len(password) < 8:
@@ -370,11 +357,11 @@ def register():
     if existing:
         flash('Username or email already taken.', 'error'); return redirect(url_for('auth'))
 
-    uid = execute_db("INSERT INTO users (username,email,password_hash,display_name) VALUES (?,?,?,?)",
+    uid = execute_db("INSERT OR IGNORE INTO users (username,email,password_hash,display_name) VALUES (?,?,?,?)",
         [username, email, hash_password(password), display_name])
     session['user_id'] = uid
     session['username'] = username
-    flash(f'Welcome to InkForge, {display_name}! Your legend begins now.', 'success')
+    flash(f'Welcome to InkForge, {display_name}!', 'success')
     return redirect(url_for('dashboard'))
 
 @app.route('/logout')
@@ -422,7 +409,7 @@ def new_novel():
                 filename = secure_filename(f"{session['user_id']}_{secrets.token_hex(8)}_{f.filename}")
                 f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 cover_image = filename
-        nid = execute_db("INSERT INTO novels (author_id,title,synopsis,status,genres,cover_image) VALUES (?,?,?,?,?,?)",
+        nid = execute_db("INSERT OR IGNORE INTO novels (author_id,title,synopsis,status,genres,cover_image) VALUES (?,?,?,?,?,?)",
             [session['user_id'], title, synopsis, status, ','.join(genres), cover_image])
         flash(f'"{title}" has been created!', 'success')
         return redirect(url_for('write_chapter', novel_id=nid))
@@ -483,20 +470,18 @@ def save_chapter():
     if not n:
         return jsonify({'ok': False, 'error': 'Unauthorized'}), 403
 
-    pub_date = 'CURRENT_TIMESTAMP' if status == 'published' else 'NULL'
-
     if chapter_id:
         existing = query_db("SELECT id FROM chapters WHERE id=? AND novel_id=?", [chapter_id, novel_id], one=True)
         if existing:
-            execute_db(f"""UPDATE chapters SET title=?,content=?,author_note=?,status=?,
-                           word_count=?,updated_at=CURRENT_TIMESTAMP,
-                           published_at=CASE WHEN status!='published' AND ?='published' THEN CURRENT_TIMESTAMP ELSE published_at END
-                           WHERE id=?""",
+            execute_db("""UPDATE chapters SET title=?,content=?,author_note=?,status=?,
+                          word_count=?,updated_at=CURRENT_TIMESTAMP,
+                          published_at=CASE WHEN status!='published' AND ?='published' THEN CURRENT_TIMESTAMP ELSE published_at END
+                          WHERE id=?""",
                 [title, content, author_note, status, word_count, status, chapter_id])
             execute_db("UPDATE novels SET updated_at=CURRENT_TIMESTAMP WHERE id=?", [novel_id])
             return jsonify({'ok': True, 'chapter_id': chapter_id, 'word_count': word_count})
 
-    new_id = execute_db("""INSERT INTO chapters (novel_id,chapter_number,title,content,author_note,status,word_count,published_at)
+    new_id = execute_db("""INSERT OR IGNORE INTO chapters (novel_id,chapter_number,title,content,author_note,status,word_count,published_at)
                            VALUES (?,?,?,?,?,?,?,CASE WHEN ?='published' THEN CURRENT_TIMESTAMP ELSE NULL END)""",
         [novel_id, chapter_number, title, content, author_note, status, word_count, status])
     execute_db("UPDATE novels SET updated_at=CURRENT_TIMESTAMP WHERE id=?", [novel_id])
@@ -537,7 +522,7 @@ def settings():
     return render_template('settings.html', user=user)
 
 # ─────────────────────────────────────────
-# ROUTES — SOCIAL ACTIONS
+# ROUTES — SOCIAL
 # ─────────────────────────────────────────
 @app.route('/api/library/<int:novel_id>', methods=['POST'])
 @login_required
@@ -581,12 +566,10 @@ def rate_novel(novel_id):
     n = query_db("SELECT ROUND(rating_sum/rating_count,1) as avg FROM novels WHERE id=?", [novel_id], one=True)
     return jsonify({'ok': True, 'new_avg': n['avg']})
 
-def startup():
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    init_db()
-
-with app.app_context():
-    startup()
+# ─────────────────────────────────────────
+# STARTUP
+# ─────────────────────────────────────────
+init_db()
 
 if __name__ == '__main__':
     print("\n" + "="*50)
