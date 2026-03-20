@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Sign In / Join{% endblock %}
+{% block extra_head %}
+<style>
+.auth-page{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg-void);position:relative;overflow:hidden;padding:5rem 1rem}
+.auth-page::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 50% at 20% 50%,rgba(201,168,76,.05),transparent),radial-gradient(ellipse 50% 60% at 80% 50%,rgba(139,26,26,.07),transparent)}
+.auth-box{background:var(--bg-surface);border:1px solid var(--border);padding:3rem;width:100%;max-width:460px;position:relative;z-index:1}
+.auth-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.auth-logo{text-align:center;margin-bottom:2rem}
+.auth-logo .logo-text{font-family:var(--font-title);font-size:2rem;color:var(--gold);letter-spacing:5px;display:block}
+.auth-logo .logo-sub{font-size:.72rem;color:var(--text-muted);letter-spacing:4px;font-family:var(--font-title)}
+.auth-tabs{display:flex;margin-bottom:2rem;border-bottom:1px solid var(--border)}
+.auth-tab{flex:1;padding:.7rem;text-align:center;font-family:var(--font-title);font-size:.68rem;letter-spacing:3px;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s;background:none;border-left:none;border-right:none;border-top:none}
+.auth-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+.auth-form{display:none}
+.auth-form.active{display:block}
+</style>
+{% endblock %}
+{% block content %}
+<div class="auth-page">
+  <div class="auth-box">
+    <a href="/" style="position:absolute;top:1rem;right:1.2rem;color:var(--text-muted);font-size:1.2rem">✕</a>
+    <div class="auth-logo">
+      <span class="logo-text">INKFORGE</span>
+      <span class="logo-sub">YOUR STORY AWAITS</span>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login',this)" id="tab-login">SIGN IN</button>
+      <button class="auth-tab" onclick="switchTab('register',this)" id="tab-register">CREATE ACCOUNT</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="auth-form active" id="form-login">
+      <form method="POST" action="/login">
+        <div class="form-group">
+          <label>USERNAME OR EMAIL</label>
+          <input type="text" name="username" placeholder="Enter username or email" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label>PASSWORD</label>
+          <input type="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+        </div>
+        <button class="btn btn-gold" type="submit" style="width:100%;padding:.8rem;font-size:.78rem;margin-top:.5rem">ENTER THE FORGE</button>
+      </form>
+      <div class="divider">DEMO ACCOUNT</div>
+      <p style="font-size:.85rem;color:var(--text-muted);text-align:center;line-height:1.8">
+        Username: <span style="color:var(--gold);font-family:var(--font-mono)">scribe</span><br>
+        Password: <span style="color:var(--gold);font-family:var(--font-mono)">forge123</span>
+      </p>
+    </div>
+
+    <!-- REGISTER -->
+    <div class="auth-form" id="form-register">
+      <form method="POST" action="/register">
+        <div class="form-group">
+          <label>USERNAME (PEN NAME)</label>
+          <input type="text" name="username" placeholder="3–20 characters, letters & numbers" required minlength="3" maxlength="20" pattern="[a-zA-Z0-9_-]+">
+        </div>
+        <div class="form-group">
+          <label>DISPLAY NAME (OPTIONAL)</label>
+          <input type="text" name="display_name" placeholder="How your name appears publicly">
+        </div>
+        <div class="form-group">
+          <label>EMAIL ADDRESS</label>
+          <input type="email" name="email" placeholder="your@email.com" required>
+        </div>
+        <div class="form-group">
+          <label>PASSWORD</label>
+          <input type="password" name="password" placeholder="Minimum 8 characters" required minlength="8" id="regPass">
+        </div>
+        <div class="form-group">
+          <label>CONFIRM PASSWORD</label>
+          <input type="password" name="confirm_password" placeholder="Repeat password" required id="regPass2">
+          <div id="passMatchErr" style="color:#e74c3c;font-size:.8rem;margin-top:.3rem;display:none">Passwords do not match.</div>
+        </div>
+        <button class="btn btn-gold" type="submit" style="width:100%;padding:.8rem;font-size:.78rem;margin-top:.5rem" onclick="return checkPassMatch()">FORGE YOUR LEGEND</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(tab, el) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('form-' + tab).classList.add('active');
+}
+function checkPassMatch() {
+  const p = document.getElementById('regPass').value;
+  const p2 = document.getElementById('regPass2').value;
+  const err = document.getElementById('passMatchErr');
+  if (p !== p2) { err.style.display='block'; return false; }
+  err.style.display='none'; return true;
+}
+// Auto-switch to register tab if hash is #register
+if (window.location.hash === '#register') {
+  switchTab('register', document.getElementById('tab-register'));
+}
+</script>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}New Novel{% endblock %}
+{% block extra_head %}
+<style>
+.form-page{max-width:700px;margin:0 auto;padding:3rem 2rem}
+.page-heading{font-family:var(--font-title);font-size:1.4rem;letter-spacing:3px;color:var(--text-primary);margin-bottom:.4rem}
+.page-subheading{color:var(--text-secondary);margin-bottom:2rem}
+.genre-checkboxes{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+.genre-check{display:none}
+.genre-label{background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);padding:.3rem .8rem;font-family:var(--font-title);font-size:.62rem;letter-spacing:1px;cursor:pointer;transition:all .2s}
+.genre-check:checked+.genre-label{background:rgba(201,168,76,.12);border-color:var(--gold-dim);color:var(--gold)}
+.cover-upload{border:2px dashed var(--border);padding:2rem;text-align:center;cursor:pointer;transition:border-color .2s;margin-top:.5rem}
+.cover-upload:hover{border-color:var(--gold-dim)}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-wrap">
+<div class="form-page">
+  <div class="page-heading">NEW NOVEL</div>
+  <div class="page-subheading">Begin a new legend</div>
+  <form method="POST" action="/dashboard/new-novel" enctype="multipart/form-data">
+    <div class="form-group">
+      <label>NOVEL TITLE *</label>
+      <input type="text" name="title" placeholder="The name of your epic…" required>
+    </div>
+    <div class="form-group">
+      <label>SYNOPSIS</label>
+      <textarea name="synopsis" rows="5" placeholder="Captivate your readers in a few sentences…"></textarea>
+    </div>
+    <div class="form-group">
+      <label>GENRES (SELECT UP TO 3)</label>
+      <div class="genre-checkboxes">
+        {% for g in ['Fantasy','Isekai','Romance','Sci-Fi','Horror','Action','Mystery','LitRPG','Xianxia','Cultivation','Slice of Life','Adventure','Thriller','Historical','Supernatural'] %}
+        <input type="checkbox" class="genre-check" id="g_{{ loop.index }}" name="genres" value="{{ g }}">
+        <label class="genre-label" for="g_{{ loop.index }}">{{ g }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="form-group">
+      <label>STATUS</label>
+      <select name="status">
+        <option value="Ongoing">Ongoing</option>
+        <option value="Completed">Completed</option>
+        <option value="Hiatus">On Hiatus</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>COVER IMAGE</label>
+      <div class="cover-upload" onclick="document.getElementById('coverInput').click()">
+        <div style="font-size:2rem;margin-bottom:.5rem;opacity:.4">🖼</div>
+        <div style="font-family:var(--font-title);font-size:.68rem;letter-spacing:2px;color:var(--text-muted)">CLICK TO UPLOAD COVER</div>
+        <div style="font-size:.78rem;color:var(--text-muted);margin-top:.3rem">JPG, PNG, WEBP · Max 5MB</div>
+        <div id="coverName" style="font-size:.82rem;color:var(--gold);margin-top:.5rem"></div>
+      </div>
+      <input type="file" name="cover" id="coverInput" accept=".jpg,.jpeg,.png,.webp" style="display:none" onchange="document.getElementById('coverName').textContent=this.files[0]?.name||''">
+    </div>
+    <div style="display:flex;gap:1rem;margin-top:1.5rem">
+      <button class="btn btn-gold" type="submit" style="font-size:.72rem">CREATE NOVEL</button>
+      <a class="btn btn-ghost" href="/dashboard" style="font-size:.72rem">CANCEL</a>
+    </div>
+  </form>
+</div>
+</div>
+<script>
+// Limit genre selection to 3
+document.querySelectorAll('.genre-check').forEach(cb => {
+  cb.addEventListener('change', () => {
+    const checked = document.querySelectorAll('.genre-check:checked');
+    if (checked.length > 3) { cb.checked = false; }
+  });
+});
+</script>
+{% endblock %}

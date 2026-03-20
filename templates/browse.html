@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Browse Novels{% endblock %}
+{% block extra_head %}
+<style>
+.browse-hero{background:var(--bg-deep);padding:2.5rem 2rem;border-bottom:1px solid var(--border)}
+.browse-hero h1{font-family:var(--font-title);font-size:1.6rem;letter-spacing:3px;color:var(--text-primary);margin-bottom:.5rem}
+.search-bar{display:flex;gap:.8rem;max-width:500px}
+.search-bar input{flex:1;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-primary);padding:.6rem 1rem;font-family:var(--font-body);font-size:1rem;outline:none}
+.search-bar input:focus{border-color:var(--gold-dim)}
+.filter-row{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem}
+.filter-chip{font-family:var(--font-title);font-size:.6rem;letter-spacing:2px;padding:.35rem .9rem;border:1px solid var(--border);background:transparent;color:var(--text-secondary);cursor:pointer;transition:all .2s}
+.filter-chip:hover,.filter-chip.active{border-color:var(--gold-dim);color:var(--gold);background:rgba(201,168,76,.06)}
+.sort-bar{display:flex;gap:.5rem;align-items:center;font-family:var(--font-title);font-size:.65rem;letter-spacing:2px;color:var(--text-muted)}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-wrap">
+  <div class="browse-hero">
+    <div style="max-width:1300px;margin:0 auto">
+      <h1>BROWSE NOVELS</h1>
+      <form method="GET" action="/browse">
+        <input type="hidden" name="genre" value="{{ genre }}">
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <div class="search-bar">
+          <input type="text" name="q" placeholder="Search titles, synopses…" value="{{ q }}">
+          <button class="btn btn-outline" type="submit" style="font-size:.65rem;padding:.5rem 1.2rem">SEARCH</button>
+        </div>
+      </form>
+      <div class="filter-row">
+        <a href="/browse" class="filter-chip {{ 'active' if not genre }}">ALL</a>
+        {% for g in ['Fantasy','Isekai','Romance','Sci-Fi','Horror','Action','Mystery','LitRPG','Xianxia','Cultivation','Slice of Life'] %}
+        <a href="/browse?genre={{ g }}&sort={{ sort }}" class="filter-chip {{ 'active' if genre==g }}">{{ g|upper }}</a>
+        {% endfor %}
+      </div>
+      <div class="filter-row" style="margin-top:.8rem">
+        <span style="font-family:var(--font-title);font-size:.6rem;letter-spacing:2px;color:var(--text-muted);align-self:center">SORT:</span>
+        <a href="/browse?genre={{ genre }}&sort=views&q={{ q }}" class="filter-chip {{ 'active' if sort=='views' }}">POPULAR</a>
+        <a href="/browse?genre={{ genre }}&sort=rating&q={{ q }}" class="filter-chip {{ 'active' if sort=='rating' }}">TOP RATED</a>
+        <a href="/browse?genre={{ genre }}&sort=latest&q={{ q }}" class="filter-chip {{ 'active' if sort=='latest' }}">LATEST</a>
+        <a href="/browse?genre={{ genre }}&sort=chapters&q={{ q }}" class="filter-chip {{ 'active' if sort=='chapters' }}">MOST CHAPTERS</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div style="font-family:var(--font-title);font-size:.65rem;letter-spacing:2px;color:var(--text-muted);margin-bottom:1.5rem">{{ novels|length }} NOVELS FOUND</div>
+    <div class="novels-grid">
+      {% for n in novels %}
+      <a class="novel-card" href="/novel/{{ n['id'] }}">
+        <div class="cover-placeholder"><div class="cover-icon">📖</div><div class="cover-title-small">{{ n['title'][:30] }}</div></div>
+        <div class="novel-card-body">
+          <div class="novel-card-title">{{ n['title'] }}</div>
+          <div class="novel-card-author">by <span style="color:var(--gold-dim)">{{ n['display_name'] }}</span></div>
+          <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:.3rem">★{{ n['avg_rating'] or '—' }} &nbsp;·&nbsp; {{ n['chapter_count'] }} ch</div>
+          <div>{% for g in n['genres'].split(',')[:2] if g.strip() %}<span class="tag">{{ g.strip() }}</span>{% endfor %}</div>
+        </div>
+      </a>
+      {% else %}
+      <p style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:3rem">No novels found matching your search.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Edit — {{ novel['title'] }}{% endblock %}
+{% block extra_head %}
+<style>
+.form-page{max-width:700px;margin:0 auto;padding:3rem 2rem}
+.page-heading{font-family:var(--font-title);font-size:1.4rem;letter-spacing:3px;color:var(--text-primary);margin-bottom:.4rem}
+.page-subheading{color:var(--text-secondary);margin-bottom:2rem}
+.genre-checkboxes{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+.genre-check{display:none}
+.genre-label{background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);padding:.3rem .8rem;font-family:var(--font-title);font-size:.62rem;letter-spacing:1px;cursor:pointer;transition:all .2s}
+.genre-check:checked+.genre-label{background:rgba(201,168,76,.12);border-color:var(--gold-dim);color:var(--gold)}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-wrap">
+<div class="form-page">
+  <div class="page-heading">EDIT NOVEL</div>
+  <div class="page-subheading">{{ novel['title'] }}</div>
+  <form method="POST" action="/dashboard/edit-novel/{{ novel['id'] }}" enctype="multipart/form-data">
+    <div class="form-group">
+      <label>TITLE</label>
+      <input type="text" name="title" value="{{ novel['title'] }}" required>
+    </div>
+    <div class="form-group">
+      <label>SYNOPSIS</label>
+      <textarea name="synopsis" rows="5">{{ novel['synopsis'] }}</textarea>
+    </div>
+    <div class="form-group">
+      <label>GENRES</label>
+      <div class="genre-checkboxes">
+        {% set cur_genres = novel['genres'].split(',') %}
+        {% for g in ['Fantasy','Isekai','Romance','Sci-Fi','Horror','Action','Mystery','LitRPG','Xianxia','Cultivation','Slice of Life','Adventure','Thriller','Historical','Supernatural'] %}
+        <input type="checkbox" class="genre-check" id="eg_{{ loop.index }}" name="genres" value="{{ g }}" {{ 'checked' if g in cur_genres }}>
+        <label class="genre-label" for="eg_{{ loop.index }}">{{ g }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="form-group">
+      <label>STATUS</label>
+      <select name="status">
+        <option value="Ongoing" {{ 'selected' if novel['status']=='Ongoing' }}>Ongoing</option>
+        <option value="Completed" {{ 'selected' if novel['status']=='Completed' }}>Completed</option>
+        <option value="Hiatus" {{ 'selected' if novel['status']=='Hiatus' }}>Hiatus</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>NEW COVER IMAGE (OPTIONAL)</label>
+      <input type="file" name="cover" accept=".jpg,.jpeg,.png,.webp" style="background:var(--bg-deep);border:1px solid var(--border);color:var(--text-secondary);padding:.7rem 1rem;width:100%">
+    </div>
+    <div style="display:flex;gap:1rem;margin-top:1.5rem">
+      <button class="btn btn-gold" type="submit" style="font-size:.72rem">SAVE CHANGES</button>
+      <a class="btn btn-ghost" href="/novel/{{ novel['id'] }}" style="font-size:.72rem">CANCEL</a>
+    </div>
+  </form>
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block extra_head %}
+<style>
+.settings-page{max-width:600px;margin:0 auto;padding:3rem 2rem}
+.settings-section{margin-bottom:2.5rem;padding-bottom:2.5rem;border-bottom:1px solid var(--border)}
+.settings-section:last-child{border-bottom:none}
+.settings-title{font-family:var(--font-title);font-size:.78rem;letter-spacing:3px;color:var(--gold);margin-bottom:1.2rem}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-wrap">
+<div class="settings-page">
+  <div style="font-family:var(--font-title);font-size:1.4rem;letter-spacing:3px;color:var(--text-primary);margin-bottom:.4rem">SETTINGS</div>
+  <div style="color:var(--text-secondary);margin-bottom:2.5rem">Manage your account</div>
+
+  <form method="POST" action="/dashboard/settings">
+    <div class="settings-section">
+      <div class="settings-title">PROFILE</div>
+      <div class="form-group">
+        <label>DISPLAY NAME</label>
+        <input type="text" name="display_name" value="{{ user['display_name'] }}">
+      </div>
+      <div class="form-group">
+        <label>USERNAME (READ ONLY)</label>
+        <input type="text" value="{{ user['username'] }}" disabled style="opacity:.5">
+      </div>
+      <div class="form-group">
+        <label>BIO</label>
+        <textarea name="bio" rows="4">{{ user['bio'] or '' }}</textarea>
+      </div>
+      <div class="form-group">
+        <label>WEBSITE</label>
+        <input type="url" name="website" value="{{ user['website'] or '' }}" placeholder="https://…">
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">CHANGE PASSWORD</div>
+      <p style="font-size:.88rem;color:var(--text-muted);margin-bottom:1rem">Leave blank to keep current password.</p>
+      <div class="form-group">
+        <label>NEW PASSWORD</label>
+        <input type="password" name="new_password" placeholder="Minimum 8 characters">
+      </div>
+      <div class="form-group">
+        <label>CONFIRM NEW PASSWORD</label>
+        <input type="password" name="confirm_password" placeholder="Repeat new password">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:1rem">
+      <button class="btn btn-gold" type="submit" style="font-size:.72rem">SAVE CHANGES</button>
+      <a class="btn btn-ghost" href="/dashboard" style="font-size:.72rem">CANCEL</a>
+    </div>
+  </form>
+</div>
+</div>
+{% endblock %}

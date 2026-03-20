@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ chapter['title'] }} — {{ chapter['novel_title'] }}{% endblock %}
+{% block extra_head %}
+<style>
+body{background:#0d0d18}
+.reader-header{position:fixed;top:60px;left:0;right:0;z-index:50;background:rgba(13,13,24,.97);border-bottom:1px solid var(--border);padding:.7rem 2rem;display:flex;align-items:center;justify-content:space-between}
+.reader-nav-btn{font-family:var(--font-title);font-size:.65rem;letter-spacing:2px;color:var(--text-secondary);background:none;border:1px solid var(--border);padding:.4rem 1rem;cursor:pointer;transition:all .2s}
+.reader-nav-btn:hover{color:var(--gold);border-color:var(--gold-dim)}
+.reader-title-bar{font-family:var(--font-title);font-size:.78rem;letter-spacing:2px;color:var(--text-secondary)}
+.reader-body{max-width:720px;margin:0 auto;padding:8rem 2rem 5rem}
+.reader-chapter-heading{font-family:var(--font-title);font-size:1.6rem;letter-spacing:3px;color:var(--text-primary);text-align:center;margin-bottom:.5rem}
+.reader-chapter-num{text-align:center;font-family:var(--font-mono);font-size:.78rem;color:var(--text-muted);margin-bottom:3rem}
+.reader-content{font-size:1.15rem;line-height:2;color:#cec9bb;font-family:var(--font-body)}
+.reader-content p{margin-bottom:1.4em}
+.reader-content h2{font-family:var(--font-title);font-size:1.2rem;letter-spacing:2px;color:var(--text-primary);margin:2rem 0 1rem}
+.reader-content blockquote{border-left:2px solid var(--gold-dim);padding-left:1.5rem;color:var(--text-secondary);font-style:italic;margin:1.5rem 0}
+.author-note{background:var(--bg-surface);border-left:2px solid var(--gold-dim);padding:1rem 1.5rem;margin-bottom:2.5rem;font-size:.95rem;color:var(--text-secondary);font-style:italic}
+.author-note-label{font-family:var(--font-title);font-size:.6rem;letter-spacing:3px;color:var(--gold-dim);margin-bottom:.5rem;font-style:normal}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-wrap">
+  <div class="reader-header">
+    {% if prev_ch %}
+    <a class="reader-nav-btn" href="/chapter/{{ prev_ch['id'] }}">← PREV</a>
+    {% else %}
+    <a class="reader-nav-btn" href="/novel/{{ chapter['novel_id'] }}">← NOVEL</a>
+    {% endif %}
+    <div class="reader-title-bar">{{ chapter['novel_title'] }} · Ch. {{ chapter['chapter_number'] }}</div>
+    {% if next_ch %}
+    <a class="reader-nav-btn" href="/chapter/{{ next_ch['id'] }}">NEXT →</a>
+    {% else %}
+    <button class="reader-nav-btn" disabled style="opacity:.4">LATEST →</button>
+    {% endif %}
+  </div>
+
+  <div class="reader-body">
+    <div class="reader-chapter-num">CHAPTER {{ chapter['chapter_number']|upper }}</div>
+    <div class="reader-chapter-heading">{{ chapter['title'] }}</div>
+
+    {% if chapter['author_note'] %}
+    <div class="author-note">
+      <div class="author-note-label">AUTHOR'S NOTE</div>
+      {{ chapter['author_note'] }}
+    </div>
+    {% endif %}
+
+    <div class="reader-content" id="readerContent">
+      {% for para in chapter['content'].split('\n\n') %}
+        {% if para.strip() %}
+          {% if para.startswith('## ') %}
+          <h2>{{ para[3:] }}</h2>
+          {% elif para.startswith('> ') %}
+          <blockquote>{{ para[2:] }}</blockquote>
+          {% elif para.strip() == '—————' %}
+          <div style="text-align:center;color:var(--text-muted);margin:2rem 0;letter-spacing:8px">✦ ✦ ✦</div>
+          {% else %}
+          <p>{{ para|replace('**','<strong>')|replace('**','</strong>')|replace('*','<em>')|replace('*','</em>')|safe }}</p>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    <div style="display:flex;justify-content:center;gap:1rem;margin-top:4rem;padding-top:2rem;border-top:1px solid var(--border);flex-wrap:wrap">
+      <a class="reader-nav-btn" href="/novel/{{ chapter['novel_id'] }}">← NOVEL PAGE</a>
+      {% if next_ch %}
+      <a class="reader-nav-btn" href="/chapter/{{ next_ch['id'] }}" style="color:var(--gold);border-color:var(--gold-dim)">NEXT CHAPTER →</a>
+      {% else %}
+      <span style="font-family:var(--font-title);font-size:.72rem;color:var(--text-muted);padding:.4rem 1rem;border:1px solid var(--border)">YOU'VE REACHED THE LATEST CHAPTER</span>
+      {% endif %}
+    </div>
+    <div style="text-align:center;margin-top:2rem">
+      <a href="/author/{{ chapter['author_username'] }}" style="font-family:var(--font-title);font-size:.72rem;letter-spacing:2px;color:var(--gold-dim)">MORE BY {{ chapter['author_name']|upper }}</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Write — {{ novel['title'] }}{% endblock %}
+{% block extra_head %}
+<style>
+.editor-layout{display:grid;grid-template-columns:1fr 270px;min-height:calc(100vh - 60px)}
+.editor-main{padding:2rem 3rem;border-right:1px solid var(--border);overflow-y:auto}
+.editor-toolbar{display:flex;gap:.2rem;padding:.6rem .8rem;background:var(--bg-surface);border:1px solid var(--border);margin-bottom:1.2rem;flex-wrap:wrap;align-items:center}
+.toolbar-btn{background:transparent;border:none;color:var(--text-secondary);padding:.3rem .6rem;cursor:pointer;font-size:.85rem;transition:all .2s;font-family:var(--font-mono);border-radius:2px}
+.toolbar-btn:hover{color:var(--gold);background:rgba(201,168,76,.08)}
+.toolbar-sep{width:1px;background:var(--border);margin:0 .3rem;height:20px;align-self:center}
+#chapterTitleInput{width:100%;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text-primary);font-family:var(--font-title);font-size:1.6rem;padding:.5rem 0;margin-bottom:1.5rem;outline:none;letter-spacing:2px;transition:border-color .2s}
+#chapterTitleInput:focus{border-bottom-color:var(--gold-dim)}
+#chapterTitleInput::placeholder{color:var(--text-muted)}
+#chapterBody{width:100%;min-height:65vh;background:transparent;border:none;color:var(--text-primary);font-family:var(--font-body);font-size:1.08rem;line-height:1.9;resize:none;outline:none;padding:0}
+#chapterBody::placeholder{color:var(--text-muted)}
+.editor-sidebar{background:var(--bg-deep);overflow-y:auto;padding:1.5rem}
+.editor-sidebar-title{font-family:var(--font-title);font-size:.62rem;letter-spacing:3px;color:var(--gold-dim);margin-bottom:.8rem;margin-top:1.5rem}
+.editor-sidebar-title:first-child{margin-top:0}
+.chapter-item{padding:.45rem .7rem;border:1px solid var(--border);margin-bottom:.3rem;cursor:pointer;font-size:.82rem;color:var(--text-secondary);transition:all .2s;background:var(--bg-card);display:flex;justify-content:space-between;align-items:center}
+.chapter-item:hover{color:var(--text-primary);border-color:var(--gold-dim)}
+.chapter-item.active{color:var(--gold);border-color:var(--gold-dim);background:rgba(201,168,76,.06)}
+.save-status{font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted);margin-left:auto}
+.save-status.saving{color:var(--gold)}
+.save-status.saved{color:#2ecc71}
+.prog-bar{height:3px;background:var(--bg-raised);border-radius:2px;overflow:hidden;margin-top:.4rem}
+.prog-fill{height:100%;background:var(--gold);border-radius:2px;transition:width .3s}
+@media(max-width:768px){.editor-layout{grid-template-columns:1fr}.editor-sidebar{display:none}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-wrap">
+<div class="editor-layout">
+  <div class="editor-main">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.5rem">
+      <div>
+        <div style="font-family:var(--font-title);font-size:.62rem;letter-spacing:3px;color:var(--text-muted);margin-bottom:.2rem">WRITING</div>
+        <a href="/novel/{{ novel['id'] }}" style="font-family:var(--font-title);font-size:1rem;color:var(--gold)">{{ novel['title'] }}</a>
+      </div>
+      <div style="display:flex;gap:.6rem;align-items:center">
+        <span class="save-status" id="saveStatus">All changes saved</span>
+        <button class="btn btn-ghost btn-sm" onclick="saveChapter('draft')">SAVE DRAFT</button>
+        <button class="btn btn-gold btn-sm" onclick="saveChapter('published')">PUBLISH</button>
+        <a class="btn btn-ghost btn-sm" href="/dashboard">← DASH</a>
+      </div>
+    </div>
+
+    <div class="editor-toolbar">
+      <button class="toolbar-btn" title="Bold" onclick="fmt('**','**')"><b>B</b></button>
+      <button class="toolbar-btn" title="Italic" onclick="fmt('*','*')"><i>I</i></button>
+      <button class="toolbar-btn" title="Underline" onclick="fmt('__','__')"><u>U</u></button>
+      <div class="toolbar-sep"></div>
+      <button class="toolbar-btn" onclick="fmtLine('## ')">H2</button>
+      <button class="toolbar-btn" onclick="fmtLine('> ')">QUOTE</button>
+      <button class="toolbar-btn" onclick="insertText('\n\n—————\n\n')">HR</button>
+      <div class="toolbar-sep"></div>
+      <span style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted)">
+        Ch. <input type="number" id="chNumInput" value="{{ chapter['chapter_number'] if chapter else next_num }}" min="1" style="width:50px;background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--gold);font-family:var(--font-mono);font-size:.72rem;outline:none;text-align:center;padding:.1rem">
+      </span>
+      <select id="statusSelect" style="margin-left:.5rem;background:var(--bg-deep);border:1px solid var(--border);color:var(--text-secondary);font-family:var(--font-title);font-size:.62rem;letter-spacing:1px;padding:.25rem .5rem;outline:none;cursor:pointer">
+        <option value="draft" {{ 'selected' if not chapter or chapter['status']=='draft' }}>DRAFT</option>
+        <option value="published" {{ 'selected' if chapter and chapter['status']=='published' }}>PUBLISHED</option>
+      </select>
+    </div>
+
+    <input id="chapterTitleInput" type="text" placeholder="Chapter Title…"
+      value="{{ chapter['title'] if chapter else '' }}">
+
+    <textarea id="chapterBody" placeholder="The story continues here…&#10;&#10;Begin your chapter. Your words will echo through the ages.">{{ chapter['content'] if chapter else '' }}</textarea>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem;padding-top:.8rem;border-top:1px solid var(--border)">
+      <div style="font-family:var(--font-mono);font-size:.78rem;color:var(--text-muted)">
+        <span id="wordCount">0</span> words · <span id="charCount">0</span> chars
+      </div>
+      <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted)">
+        Last saved: <span id="lastSavedTime">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="editor-sidebar">
+    <div class="editor-sidebar-title">AUTHOR'S NOTE</div>
+    <textarea id="authorNote" placeholder="Optional note to readers…" rows="3"
+      style="font-size:.88rem;padding:.5rem .7rem">{{ chapter['author_note'] if chapter else '' }}</textarea>
+
+    <div class="editor-sidebar-title">WRITING GOAL</div>
+    <div style="font-size:.82rem;color:var(--text-secondary);margin-bottom:.4rem">Daily: 2,000 words</div>
+    <div class="prog-bar"><div class="prog-fill" id="goalProg" style="width:0%"></div></div>
+    <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-muted);margin-top:.3rem"><span id="goalWords">0</span> / 2,000</div>
+
+    <div class="editor-sidebar-title">CHAPTERS</div>
+    {% for ch in chapters %}
+    <a class="chapter-item {{ 'active' if chapter and chapter['id']==ch['id'] }}"
+       href="/write/{{ novel['id'] }}?chapter_id={{ ch['id'] }}">
+      <span>Ch.{{ ch['chapter_number'] }} — {{ ch['title'][:18] }}{% if ch['title']|length > 18 %}…{% endif %}</span>
+      <span style="font-size:.65rem;color:{{ '#2ecc71' if ch['status']=='published' else 'var(--text-muted)' }}">
+        {{ '●' if ch['status']=='published' else '○' }}
+      </span>
+    </a>
+    {% endfor %}
+    <a class="chapter-item" href="/write/{{ novel['id'] }}" style="border-style:dashed;color:var(--text-muted);justify-content:center">+ NEW CHAPTER</a>
+  </div>
+</div>
+</div>
+
+<script>
+const NOVEL_ID = {{ novel['id'] }};
+let CHAPTER_ID = {{ chapter['id'] if chapter else 'null' }};
+let autoSaveTimer;
+
+function countWords() {
+  const text = document.getElementById('chapterBody').value;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  document.getElementById('wordCount').textContent = words.toLocaleString();
+  document.getElementById('charCount').textContent = text.length.toLocaleString();
+  const pct = Math.min(100, Math.round(words / 2000 * 100));
+  document.getElementById('goalProg').style.width = pct + '%';
+  document.getElementById('goalWords').textContent = words.toLocaleString();
+}
+
+document.getElementById('chapterBody').addEventListener('input', () => {
+  countWords();
+  setSaveStatus('saving');
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => saveChapter('draft', true), 3000);
+});
+
+countWords();
+
+function setSaveStatus(state) {
+  const el = document.getElementById('saveStatus');
+  if (state === 'saving') { el.textContent = 'Saving…'; el.className = 'save-status saving'; }
+  else if (state === 'saved') { el.textContent = 'Saved'; el.className = 'save-status saved'; }
+}
+
+async function saveChapter(status, silent = false) {
+  const title = document.getElementById('chapterTitleInput').value.trim() || 'Untitled Chapter';
+  const content = document.getElementById('chapterBody').value;
+  const authorNote = document.getElementById('authorNote').value;
+  const chapterNumber = parseInt(document.getElementById('chNumInput').value) || 1;
+  const selectedStatus = document.getElementById('statusSelect').value;
+  const finalStatus = status || selectedStatus;
+
+  setSaveStatus('saving');
+  try {
+    const r = await fetch('/api/save-chapter', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({novel_id: NOVEL_ID, chapter_id: CHAPTER_ID, title, content, author_note: authorNote, status: finalStatus, chapter_number: chapterNumber})
+    });
+    const d = await r.json();
+    if (d.ok) {
+      CHAPTER_ID = d.chapter_id;
+      document.getElementById('lastSavedTime').textContent = new Date().toLocaleTimeString();
+      setSaveStatus('saved');
+      if (!silent && finalStatus === 'published') {
+        alert('Chapter published!');
+        window.location.href = '/novel/' + NOVEL_ID;
+      }
+    }
+  } catch(e) { setSaveStatus('saving'); }
+}
+
+function fmt(before, after) {
+  const ta = document.getElementById('chapterBody');
+  const s = ta.selectionStart, e = ta.selectionEnd;
+  const sel = ta.value.substring(s, e) || 'text';
+  ta.value = ta.value.substring(0,s) + before + sel + after + ta.value.substring(e);
+  countWords();
+}
+function fmtLine(prefix) {
+  const ta = document.getElementById('chapterBody');
+  const s = ta.selectionStart;
+  const lineStart = ta.value.lastIndexOf('\n', s - 1) + 1;
+  ta.value = ta.value.substring(0, lineStart) + prefix + ta.value.substring(lineStart);
+  countWords();
+}
+function insertText(text) {
+  const ta = document.getElementById('chapterBody');
+  const s = ta.selectionStart;
+  ta.value = ta.value.substring(0, s) + text + ta.value.substring(s);
+  countWords();
+}
+</script>
+{% endblock %}

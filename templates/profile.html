@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ author['display_name'] }} — Author{% endblock %}
+{% block extra_head %}
+<style>
+.profile-hero{background:var(--bg-deep);border-bottom:1px solid var(--border);padding:3rem 2rem 2rem;position:relative;overflow:hidden}
+.profile-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 100% at 50% -20%,rgba(201,168,76,.07),transparent)}
+.profile-inner{max-width:900px;margin:0 auto;display:flex;gap:2rem;align-items:flex-start;position:relative}
+.profile-avatar{width:100px;height:100px;background:var(--bg-raised);border:2px solid var(--gold-dim);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:2rem;color:var(--gold);flex-shrink:0}
+.profile-stats{display:flex;gap:2rem;margin-top:1.2rem;flex-wrap:wrap}
+.profile-stats span{font-family:var(--font-title);font-size:.62rem;letter-spacing:2px;color:var(--text-muted)}
+.profile-stats strong{display:block;font-size:1.2rem;color:var(--gold);margin-bottom:.2rem;font-family:var(--font-title)}
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-wrap">
+  <div class="profile-hero">
+    <div class="profile-inner">
+      <div class="profile-avatar">{{ author['display_name'][0]|upper }}</div>
+      <div>
+        <h1 style="font-family:var(--font-title);font-size:1.6rem;letter-spacing:3px;margin-bottom:.3rem">{{ author['display_name'] }}</h1>
+        <div style="font-family:var(--font-mono);font-size:.85rem;color:var(--text-muted);margin-bottom:.8rem">@{{ author['username'] }}</div>
+        {% if author['bio'] %}<p style="color:var(--text-secondary);font-size:.95rem;line-height:1.6;max-width:500px">{{ author['bio'] }}</p>{% endif %}
+        {% if author['website'] %}<a href="{{ author['website'] }}" style="font-size:.85rem;color:var(--gold-dim)">{{ author['website'] }}</a>{% endif %}
+        <div class="profile-stats">
+          <span><strong>{{ novels|length }}</strong>NOVELS</span>
+          <span><strong>{{ follower_count }}</strong>FOLLOWERS</span>
+        </div>
+        {% if current_user and current_user['id'] != author['id'] %}
+        <div style="margin-top:1rem">
+          <button class="btn btn-outline btn-sm" id="followBtn" onclick="toggleFollow({{ author['id'] }})">
+            {{ 'UNFOLLOW' if is_following else 'FOLLOW AUTHOR' }}
+          </button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="section" style="max-width:900px">
+    <div class="section-header"><span class="section-title">✦ NOVELS</span></div>
+    <div class="novels-grid">
+      {% for n in novels %}
+      <a class="novel-card" href="/novel/{{ n['id'] }}">
+        <div class="cover-placeholder"><div class="cover-icon">📖</div><div class="cover-title-small">{{ n['title'][:30] }}</div></div>
+        <div class="novel-card-body">
+          <div class="novel-card-title">{{ n['title'] }}</div>
+          <div style="font-size:.8rem;color:var(--text-muted)">★{{ n['avg_rating'] or '—' }} · {{ n['chapter_count'] }} ch</div>
+          <div>{% for g in n['genres'].split(',')[:2] if g.strip() %}<span class="tag">{{ g.strip() }}</span>{% endfor %}</div>
+        </div>
+      </a>
+      {% else %}<p style="color:var(--text-muted)">No novels published yet.</p>{% endfor %}
+    </div>
+  </div>
+</div>
+<script>
+async function toggleFollow(uid) {
+  const r = await fetch(`/api/follow/${uid}`, {method:'POST'});
+  const d = await r.json();
+  document.getElementById('followBtn').textContent = d.following ? 'UNFOLLOW' : 'FOLLOW AUTHOR';
+}
+</script>
+{% endblock %}
