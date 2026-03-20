@@ -15,7 +15,7 @@ app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
 # Use /tmp for writable storage on Railway (ephemeral but works)
 # For persistent storage, Railway volume can be mounted at /data
-DATA_DIR = os.environ.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.environ.get("DATA_DIR", "/tmp" if os.path.exists("/app") else os.path.dirname(os.path.abspath(__file__)))
 DATABASE = os.path.join(DATA_DIR, 'inkforge.db')
 UPLOAD_FOLDER = os.path.join(DATA_DIR, 'static', 'uploads')
 
@@ -581,15 +581,17 @@ def rate_novel(novel_id):
     n = query_db("SELECT ROUND(rating_sum/rating_count,1) as avg FROM novels WHERE id=?", [novel_id], one=True)
     return jsonify({'ok': True, 'new_avg': n['avg']})
 
-if __name__ == '__main__':
+def startup():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     init_db()
+
+with app.app_context():
+    startup()
+
+if __name__ == '__main__':
     print("\n" + "="*50)
     print("  InkForge is running!")
     print("  Open: http://localhost:5000")
     print("  Demo login: scribe / forge123")
     print("="*50 + "\n")
     app.run(debug=True, port=5000)
-else:
-    # Called by gunicorn in production
-    init_db()
