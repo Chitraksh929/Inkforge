@@ -1,0 +1,94 @@
+# 🚀 HOW TO DEPLOY INKFORGE ONLINE (FREE)
+# Using Railway — no credit card required
+
+=====================================================
+STEP 1 — CREATE A GITHUB ACCOUNT (if you don't have one)
+=====================================================
+Go to: https://github.com
+Click "Sign up" and create a free account.
+
+
+=====================================================
+STEP 2 — UPLOAD YOUR CODE TO GITHUB
+=====================================================
+1. Go to https://github.com/new
+2. Repository name: inkforge
+3. Set to PUBLIC
+4. Click "Create repository"
+
+5. On the next page, click "uploading an existing file"
+6. Drag and drop ALL files from your inkforge folder:
+   - app.py
+   - requirements.txt
+   - Procfile
+   - railway.json
+   - runtime.txt
+   - START.py
+   - README.md
+
+7. Also upload the templates folder:
+   - Click "creating a new file"
+   - Type:  templates/base.html
+   - Paste the contents of base.html
+   - Repeat for every file in templates/
+
+   (Or use GitHub Desktop app for easier folder upload:
+    https://desktop.github.com)
+
+8. Click "Commit changes"
+
+
+=====================================================
+STEP 3 — DEPLOY ON RAILWAY
+=====================================================
+1. Go to: https://railway.app
+2. Click "Start a New Project"
+3. Click "Sign in with GitHub" and connect your account
+4. Click "Deploy from GitHub repo"
+5. Select your "inkforge" repository
+6. Railway will automatically detect Python and deploy it!
+
+Wait ~2 minutes while it builds.
+
+
+=====================================================
+STEP 4 — GET YOUR PUBLIC URL
+=====================================================
+1. Once deployed, click your project in Railway
+2. Click "Settings" → "Domains"
+3. Click "Generate Domain"
+4. You'll get a URL like:  inkforge-production.up.railway.app
+
+Share that URL with anyone — it's live on the internet!
+
+
+=====================================================
+STEP 5 — SET A SECRET KEY (important for security)
+=====================================================
+1. In Railway, go to your project → "Variables"
+2. Click "New Variable"
+3. Name:  SECRET_KEY
+4. Value: (any long random string, e.g. "myinkforge2024secretxyz789abc")
+5. Click "Add"
+Railway will restart automatically.
+
+
+=====================================================
+DEMO LOGIN (already seeded in the database)
+=====================================================
+Username: scribe
+Password: forge123
+
+
+=====================================================
+NOTES
+=====================================================
+- Railway free tier gives you $5/month credit — enough
+  to run InkForge 24/7 for free.
+- The database (SQLite) is stored on the server.
+  Data persists between restarts.
+- If you delete and redeploy, the database resets.
+  To keep data permanently, upgrade to Railway's
+  Postgres addon (still free tier available).
+
+Need help? Paste any error message to Claude!
